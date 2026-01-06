@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Banca 2026</title>
+    <style>
+        :root {
+            --primary-bg: #f0f2f5;
+            --sidebar-bg: #1a252f;
+            --positive: #27ae60;
+            --negative: #c0392b;
+            --accent: #3498db;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background-color: var(--primary-bg);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            background-color: var(--sidebar-bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+        }
+
+        .sidebar h3 { text-align: center; color: var(--accent); margin-bottom: 20px; }
+
+        .month-btn {
+            background: none;
+            border: none;
+            color: #bdc3c7;
+            padding: 12px 20px;
+            text-align: left;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: 0.2s;
+        }
+
+        .month-btn:hover { background: #2c3e50; color: white; }
+        .month-btn.active { background: var(--accent); color: white; font-weight: bold; }
+
+        /* Main Content */
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
+
+        .bank-header {
+            background: white;
+            width: 100%;
+            max-width: 700px;
+            padding: 20px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-around;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+
+        .bank-box { text-align: center; }
+        .bank-box label { display: block; font-size: 0.8rem; color: #7f8c8d; text-transform: uppercase; }
+        .bank-box input, .bank-box span {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #2c3e50;
+            border: none;
+            text-align: center;
+            width: 150px;
+        }
+
+        .calendar-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 700px;
+        }
+
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+
+        .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+
+        .weekday { text-align: center; font-weight: bold; color: #95a5a6; font-size: 0.8rem; }
+
+        .day {
+            aspect-ratio: 1 / 1;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .day:hover { background: #f1f2f6; }
+        .day-number { font-weight: bold; }
+        .day-value { font-size: 0.7rem; margin-top: 4px; }
+
+        .pos { background-color: var(--positive) !important; color: white; border: none; }
+        .neg { background-color: var(--negative) !important; color: white; border: none; }
+
+        .total-info { margin-top: 15px; font-weight: bold; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar" id="sidebar">
+        <h3>ANO 2026</h3>
+    </div>
+
+    <div class="main-content">
+        <div class="bank-header">
+            <div class="bank-box">
+                <label>Banca Inicial (R$)</label>
+                <input type="number" id="initialBankInput" value="1000" onchange="updateInitialBank()">
+            </div>
+            <div class="bank-box">
+                <label>Banca Atual (R$)</label>
+                <span id="currentBankDisplay">R$ 1.000,00</span>
+            </div>
+        </div>
+
+        <div class="calendar-card">
+            <header>
+                <h2 id="monthDisplay">Janeiro</h2>
+                <button onclick="clearMonth()" style="cursor:pointer;">Limpar Mês</button>
+            </header>
+            <div class="grid" id="calendarGrid"></div>
+        </div>
+        
+        <div class="total-info" id="monthlyResult">Resultado do Mês: 0.00%</div>
+    </div>
+
+    <script>
+        const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+        let selectedMonth = new Date().getMonth();
+        const year = 2026;
+
+        // Elementos
+        const grid = document.getElementById('calendarGrid');
+        const monthDisplay = document.getElementById('monthDisplay');
+        const sidebar = document.getElementById('sidebar');
+        const initialBankInput = document.getElementById('initialBankInput');
+        const currentBankDisplay = document.getElementById('currentBankDisplay');
+
+        // Carregar Banca Inicial do LocalStorage
+        let initialBank = parseFloat(localStorage.getItem('initial-bank')) || 1000;
+        initialBankInput.value = initialBank;
+
+        function updateInitialBank() {
+            initialBank = parseFloat(initialBankInput.value) || 0;
+            localStorage.setItem('initial-bank', initialBank);
+            render();
+        }
+
+        function initSidebar() {
+            months.forEach((name, index) => {
+                const btn = document.createElement('button');
+                btn.innerText = name;
+                btn.classList.add('month-btn');
+                if(index === selectedMonth) btn.classList.add('active');
+                btn.onclick = () => {
+                    selectedMonth = index;
+                    document.querySelectorAll('.month-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    render();
+                };
+                sidebar.appendChild(btn);
+            });
+        }
+
+        function render() {
+            grid.innerHTML = '';
+            monthDisplay.innerText = `${months[selectedMonth]} ${year}`;
+            
+            // Dias da semana
+            ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].forEach(d => {
+                const div = document.createElement('div');
+                div.className = 'weekday';
+                div.innerText = d;
+                grid.appendChild(div);
+            });
+
+            const firstDay = new Date(year, selectedMonth, 1).getDay();
+            const totalDays = new Date(year, selectedMonth + 1, 0).getDate();
+            
+            // Cálculo da Banca Acumulada (Juros Compostos)
+            // Para ser real, calculamos a banca desde o início do ano até o mês selecionado
+            let runningBank = initialBank;
+            
+            // Percorrer todos os meses anteriores até o atual para calcular a banca acumulada
+            for(let m = 0; m <= 11; m++) {
+                const storageKey = `data-${year}-${m}`;
+                const monthData = JSON.parse(localStorage.getItem(storageKey)) || {};
+                
+                // Ordenar os dias para calcular a sequência correta
+                const sortedDays = Object.keys(monthData).sort((a, b) => a - b);
+                
+                for(let d of sortedDays) {
+                    let perc = monthData[d];
+                    runningBank = runningBank * (1 + (perc / 100));
+                    
+                    // Se estivermos processando um mês futuro em relação ao selecionado, paramos o cálculo visual
+                    // Mas aqui queremos saber a banca ATÉ o dia atual do mês selecionado
+                }
+
+                // Renderizar os dias apenas do mês selecionado
+                if (m === selectedMonth) {
+                    // Espaços vazios
+                    for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
+
+                    let monthlyPerc = 0;
+
+                    for (let d = 1; d <= totalDays; d++) {
+                        const dayBox = document.createElement('div');
+                        dayBox.className = 'day';
+                        const val = monthData[d];
+
+                        if (val !== undefined) {
+                            dayBox.classList.add(val >= 0 ? 'pos' : 'neg');
+                            monthlyPerc += val;
+                        }
+
+                        dayBox.innerHTML = `
+                            <span class="day-number">${d}</span>
+                            <span class="day-value">${val !== undefined ? val + '%' : ''}</span>
+                        `;
+
+                        dayBox.onclick = () => {
+                            const input = prompt(`Variação % para o dia ${d}:`, val || "");
+                            if (input === null) return;
+                            
+                            if (input === "") {
+                                delete monthData[d];
+                            } else {
+                                monthData[d] = parseFloat(input.replace(',', '.'));
+                            }
+                            localStorage.setItem(storageKey, JSON.stringify(monthData));
+                            render();
+                        };
+                        grid.appendChild(dayBox);
+                    }
+                    document.getElementById('monthlyResult').innerText = `Resultado do Mês: ${monthlyPerc.toFixed(2)}%`;
+                }
+            }
+
+            currentBankDisplay.innerText = `R$ ${runningBank.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+
+        function clearMonth() {
+            if(confirm("Apagar dados deste mês?")) {
+                localStorage.removeItem(`data-${year}-${selectedMonth}`);
+                render();
+            }
+        }
+
+        initSidebar();
+        render();
+    </script>
+</body>
+</html>
